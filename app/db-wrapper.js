@@ -184,6 +184,30 @@ const d1PrismaWrapper = {
       }
     },
     
+    // Find by state (D1-wrapper style)
+    async findByState(state, currentDate) {
+      if (!dbInstance) throw new Error("Database not initialized");
+      
+      try {
+        const now = currentDate.getTime();
+        const result = await dbInstance.prepare(`
+          SELECT * FROM CodeVerifier 
+          WHERE state = ? AND expiresAt > ?
+        `).bind(state, now).first();
+        
+        if (!result) return null;
+        
+        return {
+          ...result,
+          expiresAt: new Date(result.expiresAt),
+          createdAt: new Date(result.createdAt)
+        };
+      } catch (error) {
+        console.error("Error finding code verifier by state:", error);
+        return null;
+      }
+    },
+    
     // Delete a code verifier
     async delete({ where }) {
       if (!dbInstance) throw new Error("Database not initialized");

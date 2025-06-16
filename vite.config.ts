@@ -80,12 +80,29 @@ export default defineConfig({
   },
   resolve: {
     mainFields: ["browser", "module", "main"],
+    alias: {
+      '@prisma/client': process.env.NODE_ENV === 'production' ? 
+        './prisma-browser-include.js' : '@prisma/client',
+      '.prisma/client': process.env.NODE_ENV === 'production' ?
+        './prisma-browser-include.js' : '.prisma/client',
+    },
   },
   build: {
     minify: true,
     assetsInlineLimit: 0,
+    rollupOptions: {
+      external: [
+        // Exclude Prisma from the Cloudflare Workers build
+        '@prisma/client',
+        '@prisma/client/index.js',
+        '.prisma/client',
+        '.prisma/client/index.js',
+        '.prisma/client/edge.js',
+      ],
+    }
   },
   optimizeDeps: {
     include: ["@shopify/app-bridge-react", "@shopify/polaris"],
+    exclude: ['@prisma/client', '.prisma/client'],
   },
 }) satisfies UserConfig;

@@ -63,13 +63,18 @@ export async function storeCodeVerifier(state: any, verifier: any) {
   expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
   try {
-    return await prisma.codeVerifier.create({
+    return await prisma.codeVerifier.create?.({
       data: {
         id: `cv_${Date.now()}`,
         state,
         verifier,
         expiresAt
       }
+    }) || await prisma.codeVerifier.insert?.({
+      id: `cv_${Date.now()}`,
+      state,
+      verifier,
+      expiresAt
     });
   } catch (error) {
     console.error('Error storing code verifier:', error);
@@ -84,18 +89,18 @@ export async function storeCodeVerifier(state: any, verifier: any) {
  */
 export async function getCodeVerifier(state: any) {
   try {
-    const verifier = await prisma.codeVerifier.findFirst({
+    const verifier = await prisma.codeVerifier.findFirst?.({
       where: {
         state,
         expiresAt: {
           gt: new Date()
         }
       }
-    });
+    }) || await prisma.codeVerifier.findByState?.(state, new Date());
 
     if (verifier) {
       // Delete it after retrieval to prevent reuse
-      await prisma.codeVerifier.delete({
+      await prisma.codeVerifier.delete?.({
         where: {
           id: verifier.id
         }
