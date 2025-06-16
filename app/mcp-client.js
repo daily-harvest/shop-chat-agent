@@ -39,12 +39,19 @@ class MCPClient {
       console.log(`Connecting to MCP server at ${this.customerMcpEndpoint}`);
 
       if (this.conversationId) {
-        const dbToken = await getCustomerToken(this.conversationId);
+        try {
+          console.log(`Attempting to retrieve customer token for conversation: ${this.conversationId}`);
+          const dbToken = await getCustomerToken(this.conversationId);
 
-        if (dbToken && dbToken.accessToken) {
-          this.customerAccessToken = dbToken.accessToken;
-        } else {
-          console.log("No token in database for conversation:", this.conversationId);
+          if (dbToken && dbToken.accessToken) {
+            console.log(`Token found for conversation: ${this.conversationId}`);
+            this.customerAccessToken = dbToken.accessToken;
+          } else {
+            console.log(`No valid token in database for conversation: ${this.conversationId}`);
+          }
+        } catch (error) {
+          console.error("Error retrieving customer token:", error);
+          // Continue without token - auth will be prompted if needed
         }
       }
 
@@ -178,13 +185,20 @@ class MCPClient {
       let accessToken = this.customerAccessToken;
 
       if (!accessToken || accessToken === "") {
-        const dbToken = await getCustomerToken(this.conversationId);
+        try {
+          console.log(`Attempting to retrieve customer token for tool call in conversation: ${this.conversationId}`);
+          const dbToken = await getCustomerToken(this.conversationId);
 
-        if (dbToken && dbToken.accessToken) {
-          accessToken = dbToken.accessToken;
-          this.customerAccessToken = accessToken; // Store it for later use
-        } else {
-          console.log("No token in database for conversation:", this.conversationId);
+          if (dbToken && dbToken.accessToken) {
+            console.log(`Token found for customer tool call`);
+            accessToken = dbToken.accessToken;
+            this.customerAccessToken = accessToken; // Store it for later use
+          } else {
+            console.log(`No valid token in database for conversation: ${this.conversationId}`);
+          }
+        } catch (error) {
+          console.error("Error retrieving customer token for tool call:", error);
+          // Continue with authentication flow
         }
       }
 

@@ -1,0 +1,26 @@
+{
+  "name": "shop-chat-agent",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./server.ts",
+  "assets": {
+    "directory": "./build/client"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "shop_auth",
+      "database_id": "0c39e425-e42b-490c-a097-1b788065b993"  // This will be replaced during deployment
+    }
+  ],
+  "vars": {
+    "SHOPIFY_API_KEY": "f3d9b37a88600eee4d82fc715e94ff46", 
+    //"SHOPIFY_API_SECRET": "your_api_secret_here", // Don't use this in production, use secrets instead
+    "SHOPIFY_APP_URL": "https://shop-chat-agent.daily-harvest-master-cloudflare-account.workers.dev",
+    "SCOPES": "customer_read_customers,customer_read_orders,customer_read_store_credit_account_transactions,customer_read_store_credit_accounts,unauthenticated_read_product_listings" // Adjust scopes as needed
+  }
+}

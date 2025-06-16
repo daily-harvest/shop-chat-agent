@@ -3,7 +3,7 @@
 client_id = "f3d9b37a88600eee4d82fc715e94ff46"
 organization_id = "76740735"
 name = "shop-chat-agent"
-application_url = "https://example.com"
+application_url = "https://shop-chat-agent.daily-harvest-master-cloudflare-account.workers.dev/"
 embedded = true
 
 [webhooks]
@@ -14,7 +14,7 @@ api_version = "2025-07"
 scopes = "customer_read_customers,customer_read_orders,customer_read_store_credit_account_transactions,customer_read_store_credit_accounts,unauthenticated_read_product_listings"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://shop-chat-agent.daily-harvest-master-cloudflare-account.workers.dev/api/auth" ]
 
 [build]
 automatically_update_urls_on_dev = true

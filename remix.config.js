@@ -11,10 +11,18 @@ if (
 }
 
 /** @type {import('@remix-run/dev').AppConfig} */
-module.exports = {
+export default {
   ignoredRouteFiles: ["**/.*"],
   appDirectory: "app",
-  serverModuleFormat: "cjs",
+  serverModuleFormat: "esm",
+  serverPlatform: "neutral",
   dev: { port: process.env.HMR_SERVER_PORT || 8002 },
-  future: {},
+  future: {
+    v3_fetcherPersist: true,
+    v3_relativeSplatPath: true,
+    v3_throwAbortReason: true,
+    v3_lazyRouteDiscovery: true,
+    v3_singleFetch: false,
+    v3_routeConfig: true,
+  },
 };

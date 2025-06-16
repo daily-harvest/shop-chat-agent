@@ -1,14 +1,55 @@
-import { PrismaClient } from "@prisma/client";
+import type { D1Database } from '@cloudflare/workers-types';
+import { dbClient } from './db-client.server';
 
-if (process.env.NODE_ENV !== "production") {
-  if (!global.prismaGlobal) {
-    global.prismaGlobal = new PrismaClient();
-  }
+declare global {
+  var d1GlobalDb: D1Database | undefined;
 }
 
-const prisma = global.prismaGlobal ?? new PrismaClient();
+// For development, we might want to use a cached instance
+// For production, we'll always get the fresh instance from env
+const getDb = (env?: { DB: D1Database }): D1Database | undefined => {
+  if (process.env.NODE_ENV !== "production") {
+    // In development, use cached instance if available
+    if (!global.d1GlobalDb && env?.DB) {
+      global.d1GlobalDb = env.DB;
+    }
+    return global.d1GlobalDb;
+  }
+  
+  // In production, always use the environment binding
+  return env?.DB;
+};
 
-export default prisma;
+// Helper functions for common database operations
+export const executeQuery = async (db: D1Database, query: string, params: any[] = []) => {
+  const statement = db.prepare(query);
+  if (params.length > 0) {
+    statement.bind(...params);
+  }
+  return await statement.run();
+};
+
+export const getAllRows = async (db: D1Database, query: string, params: any[] = []) => {
+  const statement = db.prepare(query);
+  if (params.length > 0) {
+    statement.bind(...params);
+  }
+  return await statement.all();
+};
+
+export const getFirstRow = async (db: D1Database, query: string, params: any[] = []) => {
+  const statement = db.prepare(query);
+  if (params.length > 0) {
+    statement.bind(...params);
+  }
+  return await statement.first();
+};
+
+export default getDb;
+
+// Use our unified database client that works in both Node and Cloudflare environments
+const prisma = dbClient;
+
 
 /**
  * Store a code verifier for PKCE authentication
@@ -16,7 +57,7 @@ export default prisma;
  * @param {string} verifier - The code verifier to store
  * @returns {Promise<Object>} - The saved code verifier object
  */
-export async function storeCodeVerifier(state, verifier) {
+export async function storeCodeVerifier(state: any, verifier: any) {
   // Calculate expiration date (10 minutes from now)
   const expiresAt = new Date();
   expiresAt.setMinutes(expiresAt.getMinutes() + 10);
@@ -41,7 +82,7 @@ export async function storeCodeVerifier(state, verifier) {
  * @param {string} state - The state parameter used in OAuth flow
  * @returns {Promise<Object|null>} - The code verifier object or null if not found
  */
-export async function getCodeVerifier(state) {
+export async function getCodeVerifier(state: any) {
   try {
     const verifier = await prisma.codeVerifier.findFirst({
       where: {
@@ -75,7 +116,7 @@ export async function getCodeVerifier(state) {
  * @param {Date} expiresAt - When the token expires
  * @returns {Promise<Object>} - The saved customer token
  */
-export async function storeCustomerToken(conversationId, accessToken, expiresAt) {
+export async function storeCustomerToken(conversationId: any, accessToken: any, expiresAt: any) {
   try {
     // Check if a token already exists for this conversation
     const existingToken = await prisma.customerToken.findFirst({
@@ -116,7 +157,7 @@ export async function storeCustomerToken(conversationId, accessToken, expiresAt)
  * @param {string} conversationId - The conversation ID
  * @returns {Promise<Object|null>} - The customer token or null if not found/expired
  */
-export async function getCustomerToken(conversationId) {
+export async function getCustomerToken(conversationId: any) {
   try {
     const token = await prisma.customerToken.findFirst({
       where: {
@@ -139,25 +180,30 @@ export async function getCustomerToken(conversationId) {
  * @param {string} conversationId - The conversation ID
  * @returns {Promise<Object>} - The created or updated conversation
  */
-export async function createOrUpdateConversation(conversationId) {
+export async function createOrUpdateConversation(conversationId: any) {
   try {
-    const existingConversation = await prisma.conversation.findUnique({
+    // Use our unified DB client which works in both Node.js and Cloudflare
+    const existingConversation = await prisma.conversation.findUnique?.({
       where: { id: conversationId }
-    });
+    }) || await prisma.conversation.findById?.(conversationId);
 
     if (existingConversation) {
-      return await prisma.conversation.update({
+      return await prisma.conversation.update?.({
         where: { id: conversationId },
         data: {
           updatedAt: new Date()
         }
+      }) || await prisma.conversation.updateById?.(conversationId, {
+        updatedAt: new Date()
       });
     }
 
-    return await prisma.conversation.create({
+    return await prisma.conversation.create?.({
       data: {
         id: conversationId
       }
+    }) || await prisma.conversation.insert?.({
+      id: conversationId
     });
   } catch (error) {
     console.error('Error creating/updating conversation:', error);
@@ -172,7 +218,7 @@ export async function createOrUpdateConversation(conversationId) {
  * @param {string} content - The message content
  * @returns {Promise<Object>} - The saved message
  */
-export async function saveMessage(conversationId, role, content) {
+export async function saveMessage(conversationId: any, role: any, content: any) {
   try {
     // Ensure the conversation exists
     await createOrUpdateConversation(conversationId);
@@ -196,7 +242,7 @@ export async function saveMessage(conversationId, role, content) {
  * @param {string} conversationId - The conversation ID
  * @returns {Promise<Array>} - Array of messages in the conversation
  */
-export async function getConversationHistory(conversationId) {
+export async function getConversationHistory(conversationId: any) {
   try {
     const messages = await prisma.message.findMany({
       where: { conversationId },
@@ -216,7 +262,7 @@ export async function getConversationHistory(conversationId) {
  * @param {string} url - The customer account URL
  * @returns {Promise<Object>} - The saved URL object
  */
-export async function storeCustomerAccountUrl(conversationId, url) {
+export async function storeCustomerAccountUrl(conversationId: any, url: any) {
   try {
     return await prisma.customerAccountUrl.upsert({
       where: { conversationId },
@@ -241,7 +287,7 @@ export async function storeCustomerAccountUrl(conversationId, url) {
  * @param {string} conversationId - The conversation ID
  * @returns {Promise<string|null>} - The customer account URL or null if not found
  */
-export async function getCustomerAccountUrl(conversationId) {
+export async function getCustomerAccountUrl(conversationId: any) {
   try {
     const record = await prisma.customerAccountUrl.findUnique({
       where: { conversationId }

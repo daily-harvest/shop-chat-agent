@@ -1,11 +1,9 @@
-import { PassThrough } from "stream";
-import { renderToPipeableStream } from "react-dom/server";
+import { renderToReadableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
-import { createReadableStreamFromReadable } from "@remix-run/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 
-export const streamTimeout = 5000;
+export const streamTimeout = 10000;
 
 export default async function handleRequest(
   request,
@@ -15,37 +13,34 @@ export default async function handleRequest(
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
   const userAgent = request.headers.get("user-agent");
-  const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
+  const isBotRequest = isbot(userAgent ?? "");
 
-  return new Promise((resolve, reject) => {
-    const { pipe, abort } = renderToPipeableStream(
+  try {
+    const stream = await renderToReadableStream(
       <RemixServer context={remixContext} url={request.url} />,
       {
-        [callbackName]: () => {
-          const body = new PassThrough();
-          const stream = createReadableStreamFromReadable(body);
-
-          responseHeaders.set("Content-Type", "text/html");
-          resolve(
-            new Response(stream, {
-              headers: responseHeaders,
-              status: responseStatusCode,
-            }),
-          );
-          pipe(body);
-        },
-        onShellError(error) {
-          reject(error);
-        },
+        signal: AbortSignal.timeout(streamTimeout),
         onError(error) {
-          responseStatusCode = 500;
           console.error(error);
+          responseStatusCode = 500;
         },
-      },
+      }
     );
 
-    // Automatically timeout the React renderer after 6 seconds, which ensures
-    // React has enough time to flush down the rejected boundary contents
-    setTimeout(abort, streamTimeout + 1000);
-  });
+    if (isBotRequest) {
+      await stream.allReady;
+    }
+
+    responseHeaders.set("Content-Type", "text/html");
+    return new Response(stream, {
+      headers: responseHeaders,
+      status: responseStatusCode,
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response("Internal Server Error", {
+      status: 500,
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
 }
