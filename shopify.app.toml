@@ -3,7 +3,7 @@
 client_id = "YOUR_CLIENT_ID"
 name = "shop-chat-agent"
 handle = "shop-chat-agent"
-application_url = "https://shop-chat-agent.com"
+application_url = "https://shop-chat-agent.daily-harvest-master-cloudflare-account.workers.dev"
 embedded = true
 
 [build]
@@ -17,12 +17,12 @@ api_version = "2025-04"
 scopes = "customer_read_customers,customer_read_orders,customer_read_store_credit_account_transactions,customer_read_store_credit_accounts,unauthenticated_read_product_listings"
 
 [auth]
-redirect_urls = [ "https://shop-chat-agent.com/api/auth" ]
+redirect_urls = [ "https://shop-chat-agent.daily-harvest-master-cloudflare-account.workers.dev/api/auth" ]
 
 [pos]
 embedded = false
 
 [mcp.customer_authentication]
 redirect_uris = [
-  "https://shop-chat-agent.com/callback"
+  "https://shop-chat-agent.daily-harvest-master-cloudflare-account.workers.dev/auth/callback"
 ]

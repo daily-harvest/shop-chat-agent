@@ -24,3 +24,6 @@ database.sqlite
 # Ignore shopify files created during app dev
 .shopify/*
 .shopify.lock
+.wrangler/state/v3/d1/miniflare-D1DatabaseObject/7969bc773539d5b970df2bfa582144597879fe519c2d858b3b7e03ba0451fd27.sqlite
+.wrangler/state/v3/d1/miniflare-D1DatabaseObject/7969bc773539d5b970df2bfa582144597879fe519c2d858b3b7e03ba0451fd27.sqlite-shm
+.wrangler/state/v3/d1/miniflare-D1DatabaseObject/7969bc773539d5b970df2bfa582144597879fe519c2d858b3b7e03ba0451fd27.sqlite-wal
