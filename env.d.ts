@@ -1,12 +1,13 @@
 /// <reference types="vite/client" />
 /// <reference types="@remix-run/node" />
 
+import type { PrismaClient } from "@prisma/client";
+
 // Global type declarations for database access
 declare global {
-  var d1GlobalDb: D1Database | undefined;
-  var shopifyDb: D1Database | undefined;
-  
+  var shopifyDb: PrismaClient | undefined;
+
   namespace globalThis {
-    var shopifyDb: D1Database | undefined;
+    var shopifyDb: PrismaClient | undefined;
   }
 }

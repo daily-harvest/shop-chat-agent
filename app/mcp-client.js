@@ -45,6 +45,7 @@ class MCPClient {
           this.customerAccessToken = dbToken.accessToken;
         } else {
           console.log("No token in database for conversation:", this.conversationId);
+          return [];
         }
       }
 

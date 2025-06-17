@@ -5,7 +5,41 @@ import {
   shopifyApp,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-import prisma from "./db.server";
+import getPrisma from "./db.server";
+
+// Create a custom session storage that delays Prisma initialization
+class LazyPrismaSessionStorage {
+  constructor() {
+    this._storage = null;
+  }
+
+  _getStorage() {
+    if (!this._storage) {
+      this._storage = new PrismaSessionStorage(getPrisma());
+    }
+    return this._storage;
+  }
+
+  async storeSession(session) {
+    return this._getStorage().storeSession(session);
+  }
+
+  async loadSession(id) {
+    return this._getStorage().loadSession(id);
+  }
+
+  async deleteSession(id) {
+    return this._getStorage().deleteSession(id);
+  }
+
+  async deleteSessions(ids) {
+    return this._getStorage().deleteSessions(ids);
+  }
+
+  async findSessionsByShop(shop) {
+    return this._getStorage().findSessionsByShop(shop);
+  }
+}
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -14,7 +48,7 @@ const shopify = shopifyApp({
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
-  sessionStorage: new PrismaSessionStorage(prisma),
+  sessionStorage: new LazyPrismaSessionStorage(),
   distribution: AppDistribution.AppStore,
   future: {
     unstable_newEmbeddedAuthStrategy: true,

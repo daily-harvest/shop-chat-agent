@@ -18,18 +18,18 @@ declare module "@remix-run/cloudflare" {
 }
 
 export function getLoadContext({ context }: GetLoadContextArgs) {
-  // Initialize the DB if available
-  if (context.cloudflare?.env) {
-
-    
-    // Make DB directly accessible in global namespace for easier access
-    if (typeof global !== 'undefined' && (context.cloudflare.env as any).DB) {
-      global.d1GlobalDb = (context.cloudflare.env as any).DB;
-    }
-    
-    // Make DB available on globalThis as well
-    if ((context.cloudflare.env as any).DB) {
-      globalThis.shopifyDb = (context.cloudflare.env as any).DB;
+  // Initialize the DB if available and not already initialized
+  if (context.cloudflare?.env?.DB && !global.shopifyDb) {
+    try {
+      const { PrismaClient } = require("@prisma/client");
+      const { PrismaD1 } = require("@prisma/adapter-d1");
+      global.shopifyDb = new PrismaClient({ 
+        adapter: new PrismaD1(context.cloudflare.env.DB),
+        log: ['error', 'warn']
+      });
+      console.log("Prisma Client initialized with D1 adapter");
+    } catch (error) {
+      console.error("Failed to initialize Prisma Client:", error);
     }
   }
   

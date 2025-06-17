@@ -86,7 +86,6 @@ export async function getCodeVerifier(state: any) {
  */
 export async function storeCustomerToken(conversationId: any, accessToken: any, expiresAt: any) {
   try {
-    const prisma = getPrisma();
     // Check if a token already exists for this conversation
     const existingToken = await prisma.customerToken.findFirst({
       where: { conversationId }
@@ -128,7 +127,6 @@ export async function storeCustomerToken(conversationId: any, accessToken: any, 
  */
 export async function getCustomerToken(conversationId: any) {
   try {
-    const prisma = getPrisma();
     const token = await prisma.customerToken.findFirst({
       where: {
         conversationId,
@@ -152,7 +150,6 @@ export async function getCustomerToken(conversationId: any) {
  */
 export async function createOrUpdateConversation(conversationId: any) {
   try {
-    const prisma = getPrisma();
     const existingConversation = await prisma.conversation.findUnique({
       where: { id: conversationId }
     });
@@ -186,7 +183,6 @@ export async function createOrUpdateConversation(conversationId: any) {
  */
 export async function saveMessage(conversationId: any, role: any, content: any) {
   try {
-    const prisma = getPrisma();
     // Ensure the conversation exists
     await createOrUpdateConversation(conversationId);
 
@@ -211,7 +207,6 @@ export async function saveMessage(conversationId: any, role: any, content: any) 
  */
 export async function getConversationHistory(conversationId: any) {
   try {
-    const prisma = getPrisma();
     const messages = await prisma.message.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'asc' }
@@ -232,7 +227,6 @@ export async function getConversationHistory(conversationId: any) {
  */
 export async function storeCustomerAccountUrl(conversationId: any, url: any) {
   try {
-    const prisma = getPrisma();
     return await prisma.customerAccountUrl.upsert({
       where: { conversationId },
       update: {
@@ -258,7 +252,6 @@ export async function storeCustomerAccountUrl(conversationId: any, url: any) {
  */
 export async function getCustomerAccountUrl(conversationId: any) {
   try {
-    const prisma = getPrisma();
     const record = await prisma.customerAccountUrl.findUnique({
       where: { conversationId }
     });
