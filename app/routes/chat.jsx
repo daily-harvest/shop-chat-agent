@@ -311,7 +311,7 @@ async function getCustomerMcpEndpoint(shopDomain, conversationId) {
     );
 
     const response = await storefront.graphql(
-      `#graphql
+      `#graphql#storefront
       query shop {
         shop {
           customerAccountUrl
