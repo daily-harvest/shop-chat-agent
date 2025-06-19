@@ -27,9 +27,10 @@
     "node": "^18.20 || ^20.10 || >=21.0.0"
   },
   "dependencies": {
-    "@remix-run/cloudflare": "^2.16.8",
-    "@prisma/client": "^6.9.0",
+    "@anthropic-ai/sdk": "^0.40.0",
     "@prisma/adapter-d1": "^6.9.0",
+    "@prisma/client": "^6.9.0",
+    "@remix-run/cloudflare": "^2.16.8",
     "@remix-run/dev": "^2.16.1",
     "@remix-run/fs-routes": "^2.16.1",
     "@remix-run/node": "^2.16.1",
@@ -39,15 +40,13 @@
     "@shopify/polaris": "^12.0.0",
     "@shopify/shopify-app-remix": "^3.7.0",
     "@shopify/shopify-app-session-storage-prisma": "^6.0.0",
+    "dotenv": "^16.3.1",
     "isbot": "^5.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "vite-tsconfig-paths": "^5.0.1",
-    "@anthropic-ai/sdk": "^0.40.0",
-    "dotenv": "^16.3.1"
+    "vite-tsconfig-paths": "^5.0.1"
   },
   "devDependencies": {
-    "prisma": "^6.2.1",
     "@cloudflare/vitest-pool-workers": "^0.8.19",
     "@remix-run/eslint-config": "^2.16.1",
     "@remix-run/route-config": "^2.16.1",
@@ -59,10 +58,10 @@
     "eslint": "^8.42.0",
     "eslint-config-prettier": "^10.0.1",
     "prettier": "^3.2.4",
+    "prisma": "^6.2.1",
     "typescript": "^5.2.2",
     "vite": "^6.2.2",
-    "wrangler": "^4.13.2"
-
+    "wrangler": "^4.20.3"
   },
   "workspaces": [
     "extensions/*"
