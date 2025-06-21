@@ -3,7 +3,7 @@
  * Handles chat interactions with Claude API and tools
  */
 import { json } from "@remix-run/node";
-import MCPClient from "../mcp-client";
+import EnhancedMCPClient from "../mcp-client-enhanced";
 import { saveMessage, getConversationHistory, storeCustomerAccountUrl, getCustomerAccountUrl } from "../db.server";
 import AppConfig from "../services/config.server";
 import { createSseStream } from "../services/streaming.server";
@@ -135,29 +135,34 @@ async function handleChatSession({
   const shopId = request.headers.get("X-Shopify-Shop-Id");
   const shopDomain = request.headers.get("Origin");
   const customerMcpEndpoint = await getCustomerMcpEndpoint(shopDomain, conversationId);
-  const mcpClient = new MCPClient(
+  const mcpClient = new EnhancedMCPClient(
     shopDomain,
     conversationId,
     shopId,
-    customerMcpEndpoint
+    customerMcpEndpoint,
+    {
+      debug: true,
+      retryAttempts: 3,
+      timeout: 30000
+    }
   );
 
   try {
     // Send conversation ID to client
     stream.sendMessage({ type: 'id', conversation_id: conversationId });
 
-    // Connect to MCP servers and get available tools
-    let storefrontMcpTools = [], customerMcpTools = [];
-
-    try {
-      storefrontMcpTools = await mcpClient.connectToStorefrontServer();
-      //customerMcpTools = await mcpClient.connectToCustomerServer();
-
-      console.log(`Connected to MCP with ${storefrontMcpTools.length} tools`);
-      console.log(`Connected to customer MCP with ${customerMcpTools.length} tools`);
-    } catch (error) {
-      console.warn('Failed to connect to MCP servers, continuing without tools:', error.message);
-    }
+    // Connect to MCP servers and get available tools with enhanced error handling
+    const connectionResults = await mcpClient.connectToAllServers();
+    
+    console.log(`Enhanced MCP Connection Results:`, connectionResults);
+    console.log(`Total tools available: ${connectionResults.totalTools}`);
+    
+    // Send connection status to client
+    stream.sendMessage({ 
+      type: 'mcp_status', 
+      status: mcpClient.getConnectionStatus(),
+      tools_count: connectionResults.totalTools
+    });
 
     // Prepare conversation state
     let conversationHistory = [];
