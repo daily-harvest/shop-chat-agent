@@ -7,7 +7,7 @@ import EnhancedMCPClient from "../mcp-client-enhanced";
 import { saveMessage, getConversationHistory, storeCustomerAccountUrl, getCustomerAccountUrl } from "../db.server";
 import AppConfig from "../services/config.server";
 import { createSseStream } from "../services/streaming.server";
-import { createClaudeService } from "../services/claude.server";
+// Note: AI service imports are handled dynamically in server functions to avoid client-side imports
 import { createToolService } from "../services/tool.server";
 import { unauthenticated } from "../shopify.server";
 
@@ -92,6 +92,7 @@ async function handleChatRequest(request) {
     const responseStream = createSseStream(async (stream) => {
       await handleChatSession({
         request,
+        body,
         userMessage,
         conversationId,
         promptType,
@@ -122,18 +123,39 @@ async function handleChatRequest(request) {
  */
 async function handleChatSession({
   request,
+  body,
   userMessage,
   conversationId,
   promptType,
   stream
 }) {
   // Initialize services
-  const claudeService = createClaudeService();
+  const { createAIService } = await import("../services/ai-provider.server.js");
+  const aiService = createAIService();
   const toolService = createToolService();
 
   // Initialize MCP client
   const shopId = request.headers.get("X-Shopify-Shop-Id");
-  const shopDomain = request.headers.get("Origin");
+  let shopDomain = request.headers.get("Origin");
+  
+  // Fallback: try to get shop domain from request body or URL params
+  if (!shopDomain) {
+    // Try request body first
+    if (body.shop) {
+      shopDomain = body.shop.includes('://') ? body.shop : `https://${body.shop}`;
+    } else {
+      // Try URL parameters
+      const url = new URL(request.url);
+      const shopParam = url.searchParams.get('shop');
+      if (shopParam) {
+        shopDomain = shopParam.includes('://') ? shopParam : `https://${shopParam}`;
+      } else {
+        // Final fallback for testing
+        shopDomain = "https://stagingdh.com";
+      }
+    }
+  }
+  
   const customerMcpEndpoint = await getCustomerMcpEndpoint(shopDomain, conversationId);
   const mcpClient = new EnhancedMCPClient(
     shopDomain,
@@ -188,46 +210,37 @@ async function handleChatSession({
       };
     });
 
-    // Execute the conversation stream
-    let finalMessage = { role: 'user', content: userMessage };
+    // Execute the conversation stream using the new unified interface
+    let conversationComplete = false;
 
-    while (finalMessage.stop_reason !== "end_turn") {
-      finalMessage = await claudeService.streamConversation(
-        {
-          messages: conversationHistory,
-          promptType,
-          tools: mcpClient.tools
-        },
-        {
-          // Handle text chunks
-          onText: (textDelta) => {
-            stream.sendMessage({
-              type: 'chunk',
-              chunk: textDelta
-            });
-          },
+    try {
+      // Use the new streamResponse generator interface
+      const responseGenerator = aiService.streamResponse({
+        messages: conversationHistory,
+        tools: mcpClient.tools,
+        stream: stream,
+        maxTokens: 2000,
+        temperature: 0.7
+      });
 
-          // Handle complete messages
-          onMessage: (message) => {
-            conversationHistory.push({
-              role: message.role,
-              content: message.content
-            });
+      for await (const chunk of responseGenerator) {
+        if (chunk.type === 'content') {
+          // Send content chunks to client
+          stream.sendMessage({
+            type: 'chunk',
+            chunk: chunk.content
+          });
+        } else if (chunk.type === 'tool_calls') {
+          // Handle tool calls
+          for (const toolCall of chunk.tool_calls) {
+            const toolName = toolCall.function.name;
+            const toolArgs = JSON.parse(toolCall.function.arguments);
+            const toolUseId = `tool_${Date.now()}`;
 
-            saveMessage(conversationId, message.role, JSON.stringify(message.content))
-              .catch((error) => {
-                console.error("Error saving message to database:", error);
-              });
-
-            // Send a completion message
-            stream.sendMessage({ type: 'message_complete' });
-          },
-
-          // Handle tool use requests
-          onToolUse: async (content) => {
-            const toolName = content.name;
-            const toolArgs = content.input;
-            const toolUseId = content.id;
+            // Add missing required parameters for specific tools
+            if (toolName === 'search_shop_catalog' && !toolArgs.context) {
+              toolArgs.context = 'User is looking for products';
+            }
 
             const toolUseMessage = `Calling tool: ${toolName} with arguments: ${JSON.stringify(toolArgs)}`;
 
@@ -262,19 +275,68 @@ async function handleChatSession({
 
             // Signal new message to client
             stream.sendMessage({ type: 'new_message' });
-          },
-
-          // Handle content block completion
-          onContentBlock: (contentBlock) => {
-            if (contentBlock.type === 'text') {
-              stream.sendMessage({
-                type: 'content_block_complete',
-                content_block: contentBlock
-              });
+          }
+          
+          // After processing all tool calls, continue conversation with updated history
+          if (chunk.tool_calls && chunk.tool_calls.length > 0) {
+            // Create a new response generator with the updated conversation history
+            const continueGenerator = aiService.streamResponse({
+              messages: conversationHistory,
+              tools: mcpClient.tools,
+              stream: stream,
+              maxTokens: 2000,
+              temperature: 0.7
+            });
+            
+            // Continue processing the conversation
+            for await (const continueChunk of continueGenerator) {
+              if (continueChunk.type === 'content') {
+                stream.sendMessage({
+                  type: 'chunk',
+                  chunk: continueChunk.content
+                });
+              } else if (continueChunk.type === 'done') {
+                conversationComplete = true;
+                if (continueChunk.content) {
+                  await saveMessage(conversationId, 'assistant', continueChunk.content);
+                }
+                console.log('Token usage:', continueChunk.usage);
+                break;
+              } else if (continueChunk.type === 'error') {
+                console.error('AI service error in continuation:', continueChunk.error);
+                stream.sendMessage({
+                  type: 'error',
+                  error: continueChunk.error
+                });
+                break;
+              }
             }
           }
+        } else if (chunk.type === 'done') {
+          // Conversation completed
+          conversationComplete = true;
+          
+          // Save the final assistant message
+          if (chunk.content) {
+            await saveMessage(conversationId, 'assistant', chunk.content);
+          }
+          
+          console.log('Token usage:', chunk.usage);
+        } else if (chunk.type === 'error') {
+          console.error('AI service error:', chunk.error);
+          stream.sendMessage({
+            type: 'error',
+            error: chunk.error
+          });
+          break;
         }
-      );
+      }
+    } catch (error) {
+      console.error('Error in conversation stream:', error);
+      stream.sendMessage({
+        type: 'error',
+        error: `Conversation error: ${error.message}`
+      });
     }
 
     // Signal end of turn

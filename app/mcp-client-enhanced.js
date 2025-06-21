@@ -323,11 +323,21 @@ class EnhancedMCPClient {
       } else if (this.storefrontTools.some(tool => tool.name === toolName)) {
         return await this.callStorefrontTool(toolName, toolArgs);
       } else {
-        throw new Error(`Tool ${toolName} not found in any connected MCP server`);
+        return {
+          error: {
+            type: "tool_not_found",
+            data: `Tool ${toolName} not found in any connected MCP server`
+          }
+        };
       }
     } catch (error) {
       this.emit('error', { operation: 'tool-call', toolName, error });
-      throw error;
+      return {
+        error: {
+          type: "internal_error",
+          data: `Error calling tool ${toolName}: ${error.message}`
+        }
+      };
     }
   }
 
@@ -353,7 +363,12 @@ class EnhancedMCPClient {
       return response.result || response;
     } catch (error) {
       console.error(`Error calling storefront tool ${toolName}:`, error);
-      throw error;
+      return {
+        error: {
+          type: "internal_error",
+          data: `Error calling tool ${toolName}: ${error.message}`
+        }
+      };
     }
   }
 

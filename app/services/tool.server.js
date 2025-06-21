@@ -27,6 +27,12 @@ export function createToolService() {
     } else {
       console.log("Tool use error", toolUseResponse.error);
       await addToolResultToHistory(conversationHistory, toolUseId, toolUseResponse.error.data, conversationId);
+      
+      // Send error message to frontend so it knows the tool call is complete
+      sendMessage({ 
+        type: 'error', 
+        error: `Tool error: ${toolUseResponse.error.data || toolUseResponse.error.message || 'Unknown tool error'}` 
+      });
     }
   };
 
